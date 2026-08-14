@@ -79,12 +79,16 @@ jobs:
 
       - name: Build and push
         id: build
+        env:
+          IMAGE_REPO: ${{ github.repository }}
         run: |
-          IMAGE="ghcr.io/${{ github.repository }}:${{ github.sha }}"
+          # ghcr.io requires a lowercase repository name; github.repository
+          # preserves the org/user's actual casing (e.g. Chipp-W3/taskflow).
+          IMAGE="ghcr.io/${IMAGE_REPO,,}:${{ github.sha }}"
           docker build -t "$IMAGE" .
           docker push "$IMAGE"
           digest=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE" | cut -d@ -f2)
-          echo "image=ghcr.io/${{ github.repository }}@$digest" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${IMAGE_REPO,,}@$digest" >> "$GITHUB_OUTPUT"
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
