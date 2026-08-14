@@ -12,7 +12,11 @@ set -euo pipefail
 #   ./deploy.sh staging localhost:5000/taskflow@sha256:<digest> --key cosign.pub
 #
 # If this machine has no cosign binary installed, falls back to running
-# cosign via its official container image.
+# cosign via its official container image. In that fallback mode, GHCR
+# credentials must be provided as a standalone docker config (not the
+# host's credsStore-backed one — see COSIGN_DOCKER_CONFIG below), and
+# GITHUB_REPOSITORY must be set for keyless verification (no default —
+# a wrong guess would silently accept an unrelated repo's signature).
 
 ENVIRONMENT="${1:?Usage: $0 <staging|prod> <image>@<digest> [--key <pubkey>]}"
 shift
@@ -45,15 +49,25 @@ else
   if [[ -n "${COSIGN_DOCKER_NETWORK:-}" ]]; then
     NETWORK_ARGS=(--network "$COSIGN_DOCKER_NETWORK")
   fi
-  COSIGN=(docker run --rm "${NETWORK_ARGS[@]}" -v "$PWD:/work" -w /work ghcr.io/sigstore/cosign/cosign:latest)
+  CONFIG_ARGS=()
+  if [[ -n "${COSIGN_DOCKER_CONFIG:-}" ]]; then
+    # Host docker config typically points at a credential helper (e.g.
+    # Docker Desktop's credsStore) that doesn't exist inside this container,
+    # so registry auth must come from a standalone config.json instead.
+    # The cosign image runs as the distroless "nonroot" user (uid 65532),
+    # whose $HOME is /home/nonroot — not /root.
+    CONFIG_ARGS=(-v "${COSIGN_DOCKER_CONFIG}:/home/nonroot/.docker/config.json:ro")
+  fi
+  COSIGN=(docker run --rm "${NETWORK_ARGS[@]}" "${CONFIG_ARGS[@]}" -v "$PWD:/work" -w /work ghcr.io/sigstore/cosign/cosign:latest)
 fi
 
 COSIGN_VERIFY_ARGS=()
 if [[ "${1:-}" == "--key" ]]; then
   COSIGN_VERIFY_ARGS+=(--key "$2")
 else
+  : "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY must be set (e.g. export GITHUB_REPOSITORY=owner/repo) for keyless verification}"
   COSIGN_VERIFY_ARGS+=(
-    --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY:-OWNER/taskflow}/\.github/workflows/ci\.yml@${IDENTITY_REF_PATTERN}$"
+    --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/\.github/workflows/ci\.yml@${IDENTITY_REF_PATTERN}$"
     --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
   )
 fi
