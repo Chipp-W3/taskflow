@@ -119,7 +119,7 @@ jobs:
 
   deploy-staging:
     name: Deploy (staging)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, self-hosted-taskflow] # runs on the developer's own machine, not GitHub's cloud
     needs: [build, cosign]
     environment:
       name: staging
@@ -128,6 +128,9 @@ jobs:
       packages: read
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
+    defaults:
+      run:
+        shell: bash # self-hosted runner is Windows; default shell there is pwsh, not bash
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -156,7 +159,7 @@ jobs:
 
   deploy-production:
     name: Deploy (production)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, self-hosted-taskflow] # runs on the developer's own machine, not GitHub's cloud
     needs: [build, deploy-staging]
     environment:
       name: production
@@ -165,6 +168,9 @@ jobs:
       packages: read
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
+    defaults:
+      run:
+        shell: bash # self-hosted runner is Windows; default shell there is pwsh, not bash
     steps:
       - name: Checkout
         uses: actions/checkout@v4
