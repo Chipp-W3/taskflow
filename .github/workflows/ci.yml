@@ -146,7 +146,7 @@ jobs:
         run: ./deploy.sh staging "${{ needs.build.outputs.image }}"
 
       - name: Smoke test
-        run: curl -sf http://localhost:8001/ && echo
+        run: curl -sf --retry 5 --retry-delay 1 --retry-connrefused http://localhost:8001/ && echo
 
   deploy-production:
     name: Deploy (production)
@@ -177,4 +177,4 @@ jobs:
         run: ./deploy.sh prod "${{ needs.build.outputs.image }}"
 
       - name: Smoke test
-        run: curl -sf http://localhost:8000/ && echo
+        run: curl -sf --retry 5 --retry-delay 1 --retry-connrefused http://localhost:8000/ && echo
