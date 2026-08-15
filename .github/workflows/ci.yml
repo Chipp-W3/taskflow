@@ -103,6 +103,19 @@ jobs:
           ignore-unfixed: true
           exit-code: '1'
 
+      - name: Generate SBOM
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ needs.build.outputs.image }}
+          format: cyclonedx
+          output: sbom.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.json
+
   cosign:
     name: Sign image (cosign)
     runs-on: ubuntu-latest
@@ -124,6 +137,14 @@ jobs:
 
       - name: Sign image (keyless)
         run: cosign sign --yes "${{ needs.build.outputs.image }}"
+
+      - name: Download SBOM
+        uses: actions/download-artifact@v4
+        with:
+          name: sbom
+
+      - name: Attest SBOM (keyless)
+        run: cosign attest --yes --predicate sbom.json --type cyclonedx "${{ needs.build.outputs.image }}"
 
   deploy-staging:
     name: Deploy (staging)
