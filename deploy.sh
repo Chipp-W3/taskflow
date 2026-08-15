@@ -66,8 +66,11 @@ if [[ "${1:-}" == "--key" ]]; then
   COSIGN_VERIFY_ARGS+=(--key "$2")
 else
   : "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY must be set (e.g. export GITHUB_REPOSITORY=owner/repo) for keyless verification}"
+  # [.] instead of \. for a literal dot: on Windows runners, invoking a
+  # native cosign.exe from Git Bash mangles backslash-escapes in argv
+  # before the binary ever sees them, silently breaking the regex.
   COSIGN_VERIFY_ARGS+=(
-    --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/\.github/workflows/ci\.yml@${IDENTITY_REF_PATTERN}$"
+    --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/[.]github/workflows/ci[.]yml@${IDENTITY_REF_PATTERN}$"
     --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
   )
 fi
