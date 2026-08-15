@@ -133,7 +133,7 @@ jobs:
         shell: bash # self-hosted runner is Windows; default shell there is pwsh, not bash
     steps:
       - name: Prefer Git Bash over the WSL bash.exe stub in System32
-        shell: pwsh
+        shell: powershell # pwsh (PowerShell 7+) isn't installed here; this is Windows PowerShell 5.1
         run: echo 'C:\Program Files\Git\bin' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Checkout
@@ -177,7 +177,7 @@ jobs:
         shell: bash # self-hosted runner is Windows; default shell there is pwsh, not bash
     steps:
       - name: Prefer Git Bash over the WSL bash.exe stub in System32
-        shell: pwsh
+        shell: powershell # pwsh (PowerShell 7+) isn't installed here; this is Windows PowerShell 5.1
         run: echo 'C:\Program Files\Git\bin' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Checkout
