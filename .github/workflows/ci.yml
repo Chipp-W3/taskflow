@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: [main]
 
+# Only one pipeline run per branch at a time. If a newer commit arrives
+# while an older run is still in progress (e.g. still waiting on the
+# production approval gate), the older run is cancelled outright rather
+# than risking an out-of-order or duplicate deployment.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Tests (pytest)
