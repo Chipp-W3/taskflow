@@ -188,7 +188,12 @@ jobs:
           docker logs taskflow-staging || true
 
       - name: Smoke test
+        id: smoke_test
         run: curl -sf --retry 8 --retry-delay 1 --retry-all-errors http://localhost:8001/ && echo
+
+      - name: Rollback on smoke test failure
+        if: always() && steps.smoke_test.outcome == 'failure'
+        run: ./deploy.sh staging --rollback
 
   deploy-production:
     name: Deploy (production)
@@ -226,4 +231,9 @@ jobs:
         run: ./deploy.sh prod "${{ needs.build.outputs.image }}"
 
       - name: Smoke test
+        id: smoke_test
         run: curl -sf --retry 8 --retry-delay 1 --retry-all-errors http://localhost:8000/ && echo
+
+      - name: Rollback on smoke test failure
+        if: always() && steps.smoke_test.outcome == 'failure'
+        run: ./deploy.sh prod --rollback
