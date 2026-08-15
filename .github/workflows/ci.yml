@@ -130,7 +130,10 @@ jobs:
       GITHUB_REPOSITORY: ${{ github.repository }}
     defaults:
       run:
-        shell: bash # self-hosted runner is Windows; default shell there is pwsh, not bash
+        # self-hosted runner is Windows; plain "shell: bash" resolved to the
+        # WSL bash.exe stub in System32, which mangles Windows-style paths
+        # (strips backslashes) instead of Git Bash's own bash.exe.
+        shell: 'C:\Program Files\Git\bin\bash.exe -e -o pipefail {0}'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -142,8 +145,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v3
+      - name: Prepare standalone docker config for cosign container
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+        run: |
+          # No native cosign on this Windows runner, so deploy.sh falls back
+          # to running cosign via its official container image. That
+          # container can't read the host's credsStore-backed docker config
+          # (Docker Desktop), so it needs its own standalone one instead.
+          AUTH_B64=$(printf '%s:%s' "$GHCR_USER" "$GHCR_TOKEN" | base64 -w0)
+          mkdir -p "$RUNNER_TEMP/cosign-docker-config"
+          printf '{"auths":{"ghcr.io":{"auth":"%s"}}}' "$AUTH_B64" > "$RUNNER_TEMP/cosign-docker-config/config.json"
+          echo "COSIGN_DOCKER_CONFIG=$RUNNER_TEMP/cosign-docker-config/config.json" >> "$GITHUB_ENV"
 
       - name: Deploy
         run: ./deploy.sh staging "${{ needs.build.outputs.image }}"
@@ -170,7 +184,10 @@ jobs:
       GITHUB_REPOSITORY: ${{ github.repository }}
     defaults:
       run:
-        shell: bash # self-hosted runner is Windows; default shell there is pwsh, not bash
+        # self-hosted runner is Windows; plain "shell: bash" resolved to the
+        # WSL bash.exe stub in System32, which mangles Windows-style paths
+        # (strips backslashes) instead of Git Bash's own bash.exe.
+        shell: 'C:\Program Files\Git\bin\bash.exe -e -o pipefail {0}'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -182,8 +199,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v3
+      - name: Prepare standalone docker config for cosign container
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+        run: |
+          AUTH_B64=$(printf '%s:%s' "$GHCR_USER" "$GHCR_TOKEN" | base64 -w0)
+          mkdir -p "$RUNNER_TEMP/cosign-docker-config"
+          printf '{"auths":{"ghcr.io":{"auth":"%s"}}}' "$AUTH_B64" > "$RUNNER_TEMP/cosign-docker-config/config.json"
+          echo "COSIGN_DOCKER_CONFIG=$RUNNER_TEMP/cosign-docker-config/config.json" >> "$GITHUB_ENV"
 
       - name: Deploy
         run: ./deploy.sh prod "${{ needs.build.outputs.image }}"
